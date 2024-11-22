@@ -3,6 +3,7 @@ import threading
 import json
 from game_logic import OthelloGame
 import time
+import requests
 
 class OthelloServer:
     def __init__(self, host='0.0.0.0', port=5000):
@@ -26,6 +27,14 @@ class OthelloServer:
         
         print(f"Servidor iniciado em {host}:{port}")
         print(f"IP para conexão: {network_ip}")
+        print(f"IP público para conexão externa: {self.get_public_ip()}")
+    
+    def get_public_ip(self):
+        try:
+            response = requests.get('https://api.ipify.org')
+            return response.text
+        except:
+            return "Não foi possível obter o IP público"
     
     def start(self):
         while True:
