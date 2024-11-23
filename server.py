@@ -38,7 +38,8 @@ class OthelloServer:
             msg = json.loads(data)
             
             if msg["type"] == "connect":
-                game_id = msg.get("game_id", "default")
+                game_id = msg.get("game_id", "game1")
+                player_name = msg.get("player_name", "Jogador")
                 
                 if game_id not in self.games:
                     self.games[game_id] = {
@@ -56,7 +57,8 @@ class OthelloServer:
                     # Adiciona o jogador ao jogo
                     game_data["players"].append({
                         "socket": client_socket,
-                        "color": color
+                        "color": color,
+                        "name": player_name
                     })
                     
                     # Envia confirmação de conexão
@@ -152,6 +154,26 @@ class OthelloServer:
                                     return
                             
                             game_data["current_turn"] = next_color
+                            
+                            ## Envia mensagem do sistema informando o próximo jogador
+                            #next_player = next(p for p in game_data["players"] if p["color"] == next_color)
+                            #system_msg = {
+                            #    "type": "chat",
+                            #    "color": "system",
+                            #    "player_name": "Sistema",
+                            #    "message": f"Vez do jogador {next_player['name']} (Peças {'Pretas' if next_color == 'black' else 'Brancas'})"
+                            #}
+                            #self.broadcast_to_game(game_id, system_msg)
+                
+                elif msg["type"] == "chat":
+                    player = next(p for p in game_data["players"] if p["socket"] == client_socket)
+                    chat_msg = {
+                        "type": "chat",
+                        "color": player["color"],
+                        "player_name": msg["player_name"],
+                        "message": msg["message"]
+                    }
+                    self.broadcast_to_game(game_id, chat_msg)
             
             except Exception as e:
                 print(f"Erro ao processar mensagem: {e}")
@@ -168,6 +190,7 @@ class OthelloServer:
                 self.remove_client(player["socket"])
     
     def broadcast_game_start(self, game_id):
+        game_data = self.games[game_id]
         msg = {
             "type": "game_start",
             "current_turn": "black"
