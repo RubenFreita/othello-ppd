@@ -174,7 +174,11 @@ class OthelloClient:
     
     def handle_remote_move(self, msg):
         if "no_valid_moves" in msg and msg["no_valid_moves"]:
-            # Primeiro coloca a peça e vira as outras
+            # Primeiro atualiza o turno
+            self.current_turn = msg["next_turn"]
+            self.update_status()
+            
+            # Processa a jogada
             row, col = msg["row"], msg["col"]
             color = msg["color"]
             
@@ -207,11 +211,9 @@ class OthelloClient:
                     r += dr
                     c += dc
             
-            # Depois mostra a mensagem e atualiza o turno
+            # Mostra a mensagem depois de tudo processado
             messagebox.showinfo("Sem movimentos", 
                 f"Jogador {opponent_color.capitalize()} não tem movimentos válidos. Passando a vez.")
-            self.current_turn = msg["next_turn"]
-            self.update_status()
             return
         
         row, col = msg["row"], msg["col"]
