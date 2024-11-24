@@ -275,8 +275,12 @@ class OthelloClient:
     
     def connect_to_server(self, host='localhost', port=5000, player_name="", game_id="game1"):
         try:
-            self.socket.connect((host, port))
+            # Armazena as informações de conexão
+            self.host = host
+            self.port = port
             self.player_name = player_name
+            
+            self.socket.connect((host, port))
             
             msg = {
                 "type": "connect",
@@ -351,6 +355,11 @@ class OthelloClient:
             self.root.quit()
     
     def reset_game(self):
+        # Guarda as informações de conexão atuais
+        current_host = self.host if hasattr(self, 'host') else 'localhost'
+        current_port = self.port if hasattr(self, 'port') else 5000
+        current_name = self.player_name if self.player_name else "Jogador"
+        
         # Fecha o socket antigo
         try:
             self.socket.close()
@@ -368,8 +377,8 @@ class OthelloClient:
         self.init_board()
         self.update_status()
         
-        # Reconecta ao servidor
-        self.connect_to_server()
+        # Reconecta ao servidor usando as informações originais
+        self.connect_to_server(host=current_host, port=current_port, player_name=current_name)
     
     def send_message(self):
         mensagem = self.message_entry.get().strip()
