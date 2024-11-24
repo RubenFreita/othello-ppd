@@ -5,41 +5,52 @@ from game_logic import OthelloGame
 import time
 
 class OthelloServer:
-    def __init__(self, host='0.0.0.0', port=5000):
+    def __init__(self, host='0.0.0.0', port=5000, log_callback=None):
+        self.host = host
+        self.port = port
+        self.log_callback = log_callback
+        self.running = True
+        
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((host, port))
         self.server.listen(2)
         
-        self.games = {}  # Dicionário para armazenar múltiplos jogos
+        self.games = {}
         
-        # Obtém o IP real da máquina na rede
         try:
-            # Tenta obter o IP usando socket
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
-            network_ip = s.getsockname()[0]
+            self.network_ip = s.getsockname()[0]
             s.close()
         except:
-            # Se falhar, usa o hostname
-            network_ip = socket.gethostbyname(socket.gethostname())
-        
-        print(f"Servidor iniciado em {host}:{port}")
-        print(f"IP para conexão: {network_ip}")
-    
+            self.network_ip = socket.gethostbyname(socket.gethostname())
+
+    def log(self, message, message_type="INFO"):
+        if self.log_callback:
+            self.log_callback(message, message_type)
+        else:
+            print(f"[{message_type}] {message}")
+
     def start(self):
-        while True:
-            client_socket, address = self.server.accept()
-            threading.Thread(target=self.handle_client, args=(client_socket, address)).start()
-    
+        while self.running:
+            try:
+                client_socket, address = self.server.accept()
+                threading.Thread(target=self.handle_client, args=(client_socket, address)).start()
+            except:
+                if self.running:
+                    self.log("Erro ao aceitar conexão", "ERROR")
+                break
+
     def handle_client(self, client_socket, address):
         try:
             data = client_socket.recv(1024).decode()
             msg = json.loads(data)
             
             if msg["type"] == "connect":
-                game_id = msg.get("game_id", "game1")
                 player_name = msg.get("player_name", "Jogador")
+                self.log(f"Jogador '{player_name}' conectou-se ao servidor")
+                game_id = msg.get("game_id", "game1")
                 
                 if game_id not in self.games:
                     self.games[game_id] = {
@@ -199,6 +210,9 @@ class OthelloServer:
     
     def remove_client(self, client_socket):
         for game_id, game_data in self.games.items():
+            for player in game_data["players"]:
+                if player["socket"] == client_socket:
+                    self.log(f"Jogador '{player['name']}' desconectou-se do servidor")
             game_data["players"] = [p for p in game_data["players"] if p["socket"] != client_socket]
         try:
             client_socket.close()
@@ -238,6 +252,17 @@ class OthelloServer:
         
         # Remove o jogo da lista de jogos ativos
         del self.games[game_id]
+
+    def stop(self):
+        self.running = False
+        self.server.close()
+        for game_id, game_data in self.games.items():
+            for player in game_data["players"]:
+                try:
+                    player["socket"].close()
+                except:
+                    pass
+        self.log("Servidor encerrado")
 
 if __name__ == "__main__":
     server = OthelloServer()
